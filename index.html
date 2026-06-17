@@ -4,24 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ספריית נכסים</title>
+  <!-- ⚠️ QUALITY-CRITICAL: must be lib/1/ (latest), NOT lib/1.1/. The old build does
+       not expose addImage/addAudioFromBase64 → insert breaks + SVG/quality degrade.
+       Do NOT change this line during UI/refactor work. See CLAUDE.md gotchas. -->
   <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Hebrew:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --bg: #ffffff;
-      --fg: #09090b;
-      --border: #e4e4e7;
-      --muted: #f4f4f5;
-      --muted-fg: #71717a;
       --primary: #0078d4;
-      --primary-fg: #ffffff;
+      --primary-dark: #005fa3;
+      --fg: #0f172a;
+      --fg-2: #4b5563;
+      --fg-3: #9ca3af;
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --border: #e2e8f0;
       --radius: 8px;
-      --shadow-sm: 0 1px 3px 0 rgb(0 0 0 / .07), 0 1px 2px -1px rgb(0 0 0 / .07);
+      --t: 140ms ease;
     }
 
     body {
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      font-family: 'Noto Sans Hebrew', 'Segoe UI', system-ui, sans-serif;
       background: var(--bg);
       color: var(--fg);
       font-size: 13px;
@@ -29,63 +36,71 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      -webkit-font-smoothing: antialiased;
     }
 
     /* ── Header ─────────────────────────────────────── */
     .hdr {
       background: var(--primary);
-      color: var(--primary-fg);
-      padding: 10px 12px 8px;
+      color: #fff;
+      padding: 12px 12px 10px;
       flex-shrink: 0;
     }
 
     .hdr h1 {
-      font-size: 13px;
+      font-size: 14px;
       font-weight: 600;
-      margin-bottom: 7px;
+      margin-bottom: 9px;
+      letter-spacing: -0.1px;
     }
 
     .search-wrap {
       display: flex;
       align-items: center;
-      background: rgba(255,255,255,.15);
-      border: 1px solid rgba(255,255,255,.25);
-      border-radius: var(--radius);
-      padding: 5px 8px;
-      gap: 6px;
-      transition: background .15s, border-color .15s;
+      background: rgba(255, 255, 255, 0.14);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 6px;
+      padding: 6px 9px;
+      gap: 7px;
+      transition: background var(--t), border-color var(--t);
     }
 
     .search-wrap:focus-within {
-      background: rgba(255,255,255,.22);
-      border-color: rgba(255,255,255,.55);
+      background: rgba(255, 255, 255, 0.22);
+      border-color: rgba(255, 255, 255, 0.55);
     }
 
-    .search-icon { display: flex; align-items: center; opacity: .75; flex-shrink: 0; }
+    .search-icon { display: flex; align-items: center; opacity: 0.75; flex-shrink: 0; }
 
     .search-wrap input {
       flex: 1;
       background: none;
       border: none;
       outline: none;
-      color: var(--primary-fg);
+      color: #fff;
       font: inherit;
-      font-size: 12px;
+      font-size: 12.5px;
     }
 
-    .search-wrap input::placeholder { color: rgba(255,255,255,.55); }
+    .search-wrap input::placeholder { color: rgba(255, 255, 255, 0.58); }
 
     .count {
-      font-size: 10px;
-      color: rgba(255,255,255,.75);
-      margin-top: 5px;
-      min-height: 13px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.72);
+      margin-top: 7px;
+      min-height: 14px;
+    }
+
+    .hint {
+      font-size: 10.5px;
+      color: rgba(255, 255, 255, 0.62);
+      margin-top: 2px;
     }
 
     /* ── Tabs ────────────────────────────────────────── */
     .tabs {
       display: flex;
-      background: var(--bg);
+      background: var(--surface);
       border-bottom: 1px solid var(--border);
       overflow-x: auto;
       scrollbar-width: none;
@@ -95,16 +110,17 @@
     .tabs::-webkit-scrollbar { display: none; }
 
     .tab {
-      padding: 8px 11px;
-      font-size: 11.5px;
-      color: var(--muted-fg);
+      padding: 9px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--fg-2);
       cursor: pointer;
       border-bottom: 2px solid transparent;
       white-space: nowrap;
       user-select: none;
       flex-shrink: 0;
       outline: none;
-      transition: color .12s;
+      transition: color var(--t);
     }
 
     .tab:hover { color: var(--fg); }
@@ -123,22 +139,22 @@
     /* ── Status bar ──────────────────────────────────── */
     #st {
       display: none;
-      padding: 8px 12px;
-      font-size: 11.5px;
+      padding: 8px 11px;
+      font-size: 12px;
       flex-shrink: 0;
       border-bottom: 1px solid transparent;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     #st.ok  { display: block; background: #f0fdf4; color: #15803d; border-color: #bbf7d0; }
-    #st.err { display: block; background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+    #st.err { display: block; background: #fef2f2; color: #dc2626; border-color: #fecaca; }
     #st.inf { display: block; background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
 
     /* ── Scrollable body ─────────────────────────────── */
     #body {
       flex: 1;
       overflow-y: auto;
-      padding: 8px;
+      padding: 10px;
     }
 
     #body::-webkit-scrollbar { width: 4px; }
@@ -148,7 +164,13 @@
     .grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 7px;
+      gap: 8px;
+      animation: grid-in 0.28s ease both;
+    }
+
+    @keyframes grid-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: none; }
     }
 
     /* ── Card ────────────────────────────────────────── */
@@ -157,36 +179,42 @@
       border-radius: var(--radius);
       overflow: hidden;
       cursor: pointer;
-      background: var(--bg);
+      background: var(--surface);
       outline: none;
-      transition: box-shadow .15s, border-color .15s;
+      transition: box-shadow var(--t), border-color var(--t);
       -webkit-tap-highlight-color: transparent;
+      user-select: none;
     }
+
+    /* Suppress the IMG's own (thumbnail) drag so the CARD-level high-quality drag fires. */
+    .card img, .thumb img { -webkit-user-drag: none; user-drag: none; }
 
     .card:hover {
-      box-shadow: var(--shadow-sm);
-      border-color: #a1a1aa;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.10), 0 1px 3px rgba(15, 23, 42, 0.06);
+      border-color: #cbd5e1;
     }
 
-    .card:active { opacity: .8; }
+    .card:hover .thumb img.vis { transform: scale(1.05); }
+
+    .card:active { opacity: 0.82; transform: scale(0.985); transition-duration: 60ms; }
 
     .card:focus-visible {
       outline: 2px solid var(--primary);
       outline-offset: 1px;
     }
 
-    .card.ins { animation: ins-flash .5s ease; }
+    .card.ins { animation: ins-flash 0.5s ease; }
 
     @keyframes ins-flash {
-      0%, 100% { border-color: var(--border); background: var(--bg); }
-      45%       { border-color: #16a34a;       background: #f0fdf4;  }
+      0%, 100% { background: var(--surface); border-color: var(--border); }
+      40%       { background: #dcfce7; border-color: #86efac; }
     }
 
     /* Thumbnail */
     .thumb {
       width: 100%;
       aspect-ratio: 4 / 3;
-      background: var(--muted);
+      background: var(--bg);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -201,7 +229,7 @@
       height: 100%;
       object-fit: cover;
       opacity: 0;
-      transition: opacity .2s;
+      transition: opacity 0.22s, transform var(--t);
     }
 
     .thumb img.vis { opacity: 1; }
@@ -209,7 +237,7 @@
     .ske {
       position: absolute;
       inset: 0;
-      background: linear-gradient(90deg, var(--muted) 25%, #e9e9eb 50%, var(--muted) 75%);
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
       background-size: 200% 100%;
       animation: ske 1.4s infinite;
     }
@@ -221,32 +249,32 @@
 
     .thumb-icon {
       font-size: 24px;
-      opacity: .3;
+      opacity: 0.32;
       position: relative;
       z-index: 1;
     }
 
     /* Card info */
     .info {
-      padding: 5px 7px 6px;
-      border-top: 1px solid var(--muted);
+      padding: 6px 8px 7px;
+      border-top: 1px solid var(--bg);
     }
 
     .name {
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 500;
       color: var(--fg);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      margin-bottom: 1px;
+      margin-bottom: 2px;
     }
 
     .ext {
-      font-size: 9.5px;
-      color: var(--muted-fg);
+      font-size: 10px;
+      color: var(--fg-3);
       text-transform: uppercase;
-      letter-spacing: .4px;
+      letter-spacing: 0.5px;
       font-weight: 500;
     }
 
@@ -258,8 +286,8 @@
       justify-content: center;
       gap: 12px;
       padding: 48px 0;
-      color: var(--muted-fg);
-      font-size: 12px;
+      color: var(--fg-2);
+      font-size: 12.5px;
     }
 
     .spin {
@@ -268,7 +296,7 @@
       border: 2.5px solid var(--border);
       border-top-color: var(--primary);
       border-radius: 50%;
-      animation: spin .7s linear infinite;
+      animation: spin 0.7s linear infinite;
     }
 
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -276,8 +304,8 @@
     .empty {
       text-align: center;
       padding: 32px 16px;
-      color: var(--muted-fg);
-      font-size: 12px;
+      color: var(--fg-2);
+      font-size: 12.5px;
       line-height: 1.75;
     }
 
@@ -285,25 +313,29 @@
 
     .retry-btn {
       display: inline-block;
-      margin-top: 10px;
-      padding: 5px 14px;
+      margin-top: 12px;
+      padding: 6px 16px;
       background: var(--primary);
-      color: var(--primary-fg);
+      color: #fff;
       border: none;
       border-radius: 6px;
       font: inherit;
-      font-size: 12px;
+      font-size: 12.5px;
+      font-weight: 500;
       cursor: pointer;
-      transition: opacity .12s;
+      transition: background var(--t);
     }
 
-    .retry-btn:hover { opacity: .88; }
+    .retry-btn:hover { background: var(--primary-dark); }
     .retry-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 
     /* ── Reduced motion ──────────────────────────────── */
     @media (prefers-reduced-motion: reduce) {
-      .card, .tab, .retry-btn, .search-wrap, .thumb img { transition: none !important; }
-      .card.ins, .spin, .ske { animation: none !important; }
+      .card, .tab, .retry-btn, .search-wrap, .thumb img {
+        transition: none !important;
+      }
+      .card:hover .thumb img.vis { transform: none !important; }
+      .card.ins, .spin, .ske, .grid { animation: none !important; }
     }
   </style>
 </head>
@@ -321,6 +353,7 @@
     <input id="q" type="text" placeholder="חפש נכסים..." autocomplete="off" spellcheck="false" aria-label="חיפוש נכסים">
   </div>
   <div class="count" id="cnt"></div>
+  <div class="hint">גרור או לחץ על נכס כדי להוסיפו לשקף באיכות מלאה</div>
 </div>
 
 <div class="tabs" id="tabs" role="tablist" aria-label="קטגוריות נכסים"></div>
@@ -337,6 +370,13 @@
 const ROOT_FOLDER_ID = "1kuLZ5Ayvn6Fdl7CK7o0qJWVQVumtE3VE";
 const GOOGLE_API_KEY = "AIzaSyBENFX6GkcgzwxH60a84BFmIPPTfu6fS1Q";
 const DRIVE_API      = "https://www.googleapis.com/drive/v3/files";
+
+// ⚠️ QUALITY-CRITICAL: full-quality download endpoint. Must be `alt=media`.
+// NEVER use `drive.google.com/uc?export=download` — it returns a compressed/resized
+// copy → pixelated inserts. This is the single source of truth for the insert URL.
+function fileDownloadUrl(id) {
+  return `${DRIVE_API}/${id}?alt=media&key=${GOOGLE_API_KEY}`;
+}
 
 // ─── Folder → category mapping ────────────────────────────────────────────────
 const FOLDER_META = {
@@ -397,10 +437,11 @@ async function loadFromDrive() {
       assets: files.map(f => ({
         id: f.id,
         name: f.name.replace(/\.[^.]+$/, ""),
-        url: `${DRIVE_API}/${f.id}?alt=media&key=${GOOGLE_API_KEY}`,
+        rawName: f.name,
+        url: fileDownloadUrl(f.id),
         thumbnail: f.thumbnailLink
-          ? f.thumbnailLink.replace(/=s\d+$/, "=s200")
-          : `https://drive.google.com/thumbnail?id=${f.id}&sz=w200`,
+          ? f.thumbnailLink.replace(/=s\d+$/, "=s400")
+          : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
         type: assetType(f.name, f.mimeType || ""),
         tags: [],
       })),
@@ -439,7 +480,7 @@ Office.onReady(() => {
 
 // ─── Load assets ──────────────────────────────────────────────────────────────
 async function load() {
-  const cached = sessionStorage.getItem("am_cache_v2");
+  const cached = sessionStorage.getItem("am_cache_v4");
   if (cached) {
     try { data = JSON.parse(cached); renderAll(); return; } catch (_) {}
   }
@@ -448,7 +489,7 @@ async function load() {
 
   try {
     data = await loadFromDrive();
-    sessionStorage.setItem("am_cache_v2", JSON.stringify(data));
+    sessionStorage.setItem("am_cache_v4", JSON.stringify(data));
     renderAll();
   } catch (e) {
     $tabs.innerHTML = "";
@@ -550,10 +591,31 @@ function renderGrid() {
 
 // ─── Card ──────────────────────────────────────────────────────────────────────
 function makeCard(asset) {
-  const isAudio = asset.type === "audio" || asset.type === "sound";
+  const isAudio = asset.type === "audio";
 
   const card  = document.createElement("div");
   card.className = "card";
+
+  // ⚠️ QUALITY-CRITICAL: high-quality drag-and-drop.
+  // Dragging must hand the host the FULL image bytes as a data URL — NOT the thumbnail
+  // bitmap (low-res) and NOT the Drive URL (the API key is referrer-locked to this
+  // origin, so the host's own downloader gets 403). We prefetch the full file on hover
+  // and embed it in `text/html` so the drop is full resolution.
+  if (!isAudio) {
+    card.draggable = true;
+    card.addEventListener("pointerenter", () => prefetchDragData(asset));
+    card.addEventListener("pointerdown",  () => prefetchDragData(asset));
+    card.addEventListener("dragstart", e => {
+      if (asset._dragHtml) {
+        e.dataTransfer.setData("text/html", asset._dragHtml);
+        e.dataTransfer.effectAllowed = "copy";
+      } else {
+        // Not cached yet — drop the thumbnail so something lands, and warm the cache.
+        prefetchDragData(asset);
+        e.dataTransfer.setData("text/uri-list", asset.thumbnail || asset.url);
+      }
+    });
+  }
 
   // Thumbnail
   const thumb = document.createElement("div");
@@ -570,6 +632,7 @@ function makeCard(asset) {
 
     const img = document.createElement("img");
     img.alt = "";
+    img.draggable = false;
     img.src = asset.thumbnail || asset.url;
     img.onload  = () => { img.classList.add("vis"); ske.remove(); };
     img.onerror = () => {
@@ -595,7 +658,7 @@ function makeCard(asset) {
 
   const extEl = document.createElement("div");
   extEl.className = "ext";
-  extEl.textContent = getExt(asset.url);
+  extEl.textContent = getExtFromName(asset.rawName || "");
 
   info.appendChild(name);
   info.appendChild(extEl);
@@ -625,7 +688,7 @@ async function insertAsset(asset, card) {
     if (!r.ok) throw new Error(`לא ניתן להוריד את הקובץ (HTTP ${r.status})`);
     const blob = await r.blob();
 
-    const isSvg = /\.svg$/i.test(asset.name) || blob.type === "image/svg+xml";
+    const isSvg = /\.svg$/i.test(asset.rawName || asset.name) || blob.type === "image/svg+xml";
     const dims  = isSvg ? await getSvgDims(blob) : await getImgDims(URL.createObjectURL(blob));
     const b64   = await blobToBase64(blob);
 
@@ -644,6 +707,20 @@ async function insertAsset(asset, card) {
   }
 }
 
+// Active slide = selected slide (API 1.5+) or first slide. Caller must load() shapes.
+async function getActiveSlide(ctx) {
+  try {
+    const sel = ctx.presentation.getSelectedSlides();
+    sel.load("items"); await ctx.sync();
+    if (sel.items.length) return sel.items[0];
+  } catch (_) { /* getSelectedSlides needs API 1.5 — fall through */ }
+
+  const slides = ctx.presentation.slides;
+  slides.load("items"); await ctx.sync();
+  if (!slides.items.length) throw new Error("אין שקפים במצגת");
+  return slides.items[0];
+}
+
 async function insertImageOnSlide(b64, dims) {
   const SLIDE_W = 720, SLIDE_H = 540;
   const imgW = Math.round(SLIDE_W * 0.4);
@@ -655,18 +732,9 @@ async function insertImageOnSlide(b64, dims) {
 
   try {
     await PowerPoint.run(async ctx => {
-      let slide;
-      try {
-        const sel = ctx.presentation.getSelectedSlides();
-        sel.load("items"); await ctx.sync();
-        slide = sel.items[0];
-      } catch (_) {
-        const slides = ctx.presentation.slides;
-        slides.load("items"); await ctx.sync();
-        if (!slides.items.length) throw new Error("אין שקפים במצגת");
-        slide = slides.items[0];
-      }
-
+      const slide = await getActiveSlide(ctx);
+      // ⚠️ QUALITY-CRITICAL: addImage takes pure base64 of the full-res file → native
+      // quality (and native SVG vector). Only fall back when it's truly unavailable.
       if (typeof slide.shapes.addImage !== "function") { useFallback = true; return; }
 
       const shape = slide.shapes.addImage(b64);
@@ -696,25 +764,12 @@ async function insertImageOnSlide(b64, dims) {
 
 async function insertAudio(asset, card) {
   showStatus("⏳ מכניס סאונד...", "inf", false);
-
   let apiAvailable = false;
   try {
     await PowerPoint.run(async ctx => {
-      let slide;
-      try {
-        const sel = ctx.presentation.getSelectedSlides();
-        sel.load("items"); await ctx.sync();
-        slide = sel.items[0];
-      } catch (_) {
-        const slides = ctx.presentation.slides;
-        slides.load("items"); await ctx.sync();
-        if (!slides.items.length) throw new Error("אין שקפים במצגת");
-        slide = slides.items[0];
-      }
-
+      const slide = await getActiveSlide(ctx);
       if (typeof slide.shapes.addAudioFromBase64 !== "function") return;
 
-      // Only fetch if the API is actually available
       const r = await fetch(asset.url, { mode: "cors" });
       if (!r.ok) throw new Error(`לא ניתן להוריד (HTTP ${r.status})`);
       const b64 = await blobToBase64(await r.blob());
@@ -733,11 +788,27 @@ async function insertAudio(asset, card) {
     setTimeout(() => card.classList.remove("ins"), 550);
     showStatus(`✅ "${asset.name}" הוכנס לשקף`, "ok");
   } else {
-    // window.open is blocked in Office WKWebView — use the Office API instead
-    try { Office.context.ui.openBrowserWindow(asset.url); } catch (_) {
-      window.open(asset.url, "_blank");
-    }
+    try { Office.context.ui.openBrowserWindow(asset.url); } catch (_) { window.open(asset.url, "_blank"); }
     showStatus("⬇️ שמור את הקובץ והכנס ידנית: הוספה ← שמע ← שמע במחשב שלי", "inf");
+  }
+}
+
+// Prefetch the full-res file and cache it as an embeddable data URL for drag-and-drop.
+// Runs once per asset (on hover/press); the click path is unaffected.
+async function prefetchDragData(asset) {
+  if (asset._dragHtml || asset._dragLoading) return;
+  asset._dragLoading = true;
+  try {
+    const r = await fetch(asset.url, { mode: "cors" });
+    if (!r.ok) return;
+    const blob = await r.blob();
+    const b64  = await blobToBase64(blob);
+    const mime = blob.type || "image/png";
+    asset._dragHtml = `<img src="data:${mime};base64,${b64}" alt="">`;
+  } catch (_) {
+    /* drag will fall back to the thumbnail URL */
+  } finally {
+    asset._dragLoading = false;
   }
 }
 
@@ -772,12 +843,9 @@ function blobToBase64(blob) {
   });
 }
 
-function getExt(url) {
-  try {
-    const path = new URL(url).pathname;
-    const ext = path.split(".").pop().toUpperCase();
-    return /^[A-Z0-9]{2,5}$/.test(ext) ? ext : "—";
-  } catch (_) { return "—"; }
+function getExtFromName(name) {
+  const m = name.match(/\.([a-z0-9]{2,5})$/i);
+  return m ? m[1].toUpperCase() : "—";
 }
 
 function setBody(html) { $body.innerHTML = html; }
