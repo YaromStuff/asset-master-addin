@@ -475,7 +475,7 @@
 
 <script>
 // ─── Config ───────────────────────────────────────────────────────────────────
-const ROOT_FOLDER_ID = "1kuLZ5Ayvn6Fdl7CK7o0qJWVQVumtE3VE";
+const ROOT_FOLDER_ID = "18GpVc_N1Q03b9zxpsUWcnkHCaLPdo18X";
 const GOOGLE_API_KEY = "%%GOOGLE_API_KEY%%";
 const DRIVE_API      = "https://www.googleapis.com/drive/v3/files";
 
@@ -494,6 +494,10 @@ const FOLDER_META = {
   "סאונד":      { icon: "🔊", label: "סאונד"     },
   "לוגואים":    { icon: "✏️", label: "לוגואים"   },
   "וידאו":      { icon: "🎬", label: "וידאו"     },
+  "אודיו":      { icon: "🔊", label: "אודיו"     },
+  "מפורסמים":   { icon: "⭐", label: "מפורסמים"  },
+  "טקסטורות":   { icon: "🧱", label: "טקסטורות"  },
+  "טיימרים":    { icon: "⏱️", label: "טיימרים"   },
   "mockups":    { icon: "🖥️", label: "מוקאפים"  },
   "backgrounds":{ icon: "🎨", label: "רקעים"    },
   "icons":      { icon: "⭐", label: "אייקונים"  },
@@ -512,7 +516,12 @@ function assetType(name, mime) {
 }
 
 function driveUrl(params) {
-  return `${DRIVE_API}?${new URLSearchParams({ ...params, key: GOOGLE_API_KEY })}`;
+  return `${DRIVE_API}?${new URLSearchParams({
+    ...params,
+    key: GOOGLE_API_KEY,
+    supportsAllDrives: "true",
+    includeItemsFromAllDrives: "true",
+  })}`;
 }
 
 async function loadFromDrive() {
@@ -589,7 +598,7 @@ Office.onReady(() => {
 
 // ─── Load assets ──────────────────────────────────────────────────────────────
 async function load() {
-  const cached = sessionStorage.getItem("am_cache_v5");
+  const cached = sessionStorage.getItem("am_cache_v6");
   if (cached) {
     try { data = JSON.parse(cached); renderAll(); return; } catch (_) {}
   }
@@ -598,7 +607,7 @@ async function load() {
 
   try {
     data = await loadFromDrive();
-    sessionStorage.setItem("am_cache_v5", JSON.stringify(data));
+    sessionStorage.setItem("am_cache_v6", JSON.stringify(data));
     renderAll();
   } catch (e) {
     $tabs.innerHTML = "";
@@ -1067,8 +1076,9 @@ async function insertImageOnSlide(b64, dims) {
 async function getSvgDims(blob) {
   try {
     const text = await blob.text();
-    const w = parseFloat(text.match(/\bwidth="([\d.]+)/)?.[1]);
-    const h = parseFloat(text.match(/\bheight="([\d.]+)/)?.[1]);
+    // [\s<] not \b — else stroke-width="2" matches and dims come out wrong
+    const w = parseFloat(text.match(/[\s<]width="([\d.]+)/)?.[1]);
+    const h = parseFloat(text.match(/[\s<]height="([\d.]+)/)?.[1]);
     if (w > 0 && h > 0) return { w, h };
     const vb = text.match(/viewBox="([^"]+)"/)?.[1]?.trim().split(/[\s,]+/);
     if (vb?.length >= 4) return { w: parseFloat(vb[2]), h: parseFloat(vb[3]) };
