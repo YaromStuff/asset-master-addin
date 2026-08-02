@@ -553,7 +553,6 @@ async function loadFromDrive() {
           ? f.thumbnailLink.replace(/=s\d+$/, "=s400")
           : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
         type: assetType(f.name, f.mimeType || ""),
-        tags: [],
       })),
     };
   }));
@@ -663,10 +662,10 @@ function getFiltered() {
     if (activeTab !== "all" && cat.id !== activeTab) continue;
     for (const asset of (cat.assets || [])) {
       if (q) {
-        const hay = [asset.name, ...(asset.tags || []), cat.label].join(" ").toLowerCase();
+        const hay = [asset.name, cat.label].join(" ").toLowerCase();
         if (!hay.includes(q)) continue;
       }
-      out.push({ ...asset, _catId: cat.id });
+      out.push(asset);
     }
   }
   return out;
@@ -696,8 +695,7 @@ function renderGrid() {
   grid.className = "grid";
   for (const asset of list) grid.appendChild(makeCard(asset));
 
-  $body.innerHTML = "";
-  $body.appendChild(grid);
+  $body.replaceChildren(grid);
 }
 
 // ─── SVG icons (Lucide-style, no emoji) ─────────────────────────────────────────
@@ -746,7 +744,7 @@ function makeCard(asset) {
     const img = document.createElement("img");
     img.alt = "";
     img.draggable = false;
-    img.src = asset.thumbnail || asset.url;
+    img.src = asset.thumbnail;
     img.onload  = () => { img.classList.add("vis"); ske.remove(); };
     img.onerror = () => {
       ske.remove();
@@ -763,7 +761,7 @@ function makeCard(asset) {
   // Type badge (PNG / SVG / MP4 …)
   const badge = document.createElement("span");
   badge.className = "badge";
-  badge.textContent = getExtFromName(asset.rawName || "");
+  badge.textContent = getExtFromName(asset.rawName);
   thumb.appendChild(badge);
 
   // Per-type extras
@@ -932,7 +930,7 @@ function lh3Full(asset) {
 }
 
 async function getImageData(asset) {
-  const isSvg = /\.svg$/i.test(asset.rawName || asset.name);
+  const isSvg = /\.svg$/i.test(asset.rawName);
 
   // SVG must insert as VECTOR → it needs the raw source bytes (lh3 only serves a raster
   // preview, so canvas is not acceptable here). Small SVGs come back 200 + CORS from BOTH
