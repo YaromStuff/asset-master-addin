@@ -881,11 +881,23 @@ function attachAudioPreview(thumb, asset, card) {
     if (!audio.paused) { stopPreview(); return; }
     stopPreview();
     try {
-      if (!audio.src) audio.src = streamUrl(asset);
+      if (!audio.src) {
+        // ⚠️ Browsers refuse to PLAY Content-Disposition:attachment responses, and
+        // usercontent 403s browser cross-site fetches (Sec-Fetch detection) — so
+        // fetch alt=media (CORS OK) and play from a blob URL. Verified 2026-08-02.
+        showStatus("⏳ טוען תצוגה מקדימה...", "inf", false);
+        const r = await fetch(asset.url, { mode: "cors" });
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const blob = await r.blob();
+        if ((blob.type || "").includes("text/html")) throw new Error("לא משותף לציבור");
+        audio.src = URL.createObjectURL(blob);
+        hideStatus();
+      }
       await audio.play();
       card.classList.add("playing"); btn.innerHTML = ICONS.pause;
       currentPreview = { audio, card, btn };
     } catch (_) {
+      if (audio.src.startsWith("blob:")) URL.revokeObjectURL(audio.src);
       audio.removeAttribute("src"); audio.load();   // drop the bad source so a retry re-fetches
       showStatus("❌ לא ניתן לנגן תצוגה מקדימה", "err");
     }
@@ -961,16 +973,21 @@ async function getImageData(asset) {
     throw new Error(`[svg] ${last?.name || ""}:${last?.message || last}`);
   }
 
-  // Raster: exact bytes via fetch; if the WebView blocks it, fall back to lh3 =s0 → canvas
+  // Raster: exact bytes via fetch — alt=media first (usercontent 403s browser cross-site
+  // fetches via Sec-Fetch detection; verified 2026-08-02). Last resort: lh3 =s0 → canvas
   // (lh3 serves the original bytes with CORS:* and is the host the thumbnails already load).
-  try {
-    const r = await fetch(streamUrl(asset), { mode: "cors" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    if ((r.headers.get("content-type") || "").includes("text/html"))
-      throw new Error("לא משותף לציבור");
-    const blob = await r.blob();
-    return { b64: await blobToBase64(blob), dims: await getImgDims(URL.createObjectURL(blob)) };
-  } catch (eFetch) {
+  let eFetch;
+  for (const url of [asset.url, streamUrl(asset)]) {
+    try {
+      const r = await fetch(url, { mode: "cors" });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      if ((r.headers.get("content-type") || "").includes("text/html"))
+        throw new Error("לא משותף לציבור");
+      const blob = await r.blob();
+      return { b64: await blobToBase64(blob), dims: await getImgDims(URL.createObjectURL(blob)) };
+    } catch (e) { eFetch = e; }
+  }
+  {
     const url = lh3Full(asset);
     if (!url) throw new Error(`[load] fetch:${eFetch.name||""}:${eFetch.message||eFetch} | no-lh3`);
     try {
