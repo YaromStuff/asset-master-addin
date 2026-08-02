@@ -562,6 +562,9 @@ async function loadFromDrive() {
           ? f.thumbnailLink.replace(/=s\d+$/, "=s400")
           : `https://drive.google.com/thumbnail?id=${f.id}&sz=w400`,
         type: assetType(f.name, f.mimeType || ""),
+        // detect by mime too — the drive has extensionless SVGs ("arrow", "manager")
+        // that must still insert as native vector, never rasterize
+        svg: f.mimeType === "image/svg+xml" || /\.svg$/i.test(f.name),
       })),
     };
   }));
@@ -598,7 +601,7 @@ Office.onReady(() => {
 
 // ─── Load assets ──────────────────────────────────────────────────────────────
 async function load() {
-  const cached = sessionStorage.getItem("am_cache_v6");
+  const cached = sessionStorage.getItem("am_cache_v7");
   if (cached) {
     try { data = JSON.parse(cached); renderAll(); return; } catch (_) {}
   }
@@ -607,7 +610,7 @@ async function load() {
 
   try {
     data = await loadFromDrive();
-    sessionStorage.setItem("am_cache_v6", JSON.stringify(data));
+    sessionStorage.setItem("am_cache_v7", JSON.stringify(data));
     renderAll();
   } catch (e) {
     $tabs.innerHTML = "";
@@ -770,7 +773,7 @@ function makeCard(asset) {
   // Type badge (PNG / SVG / MP4 …)
   const badge = document.createElement("span");
   badge.className = "badge";
-  badge.textContent = getExtFromName(asset.rawName);
+  badge.textContent = asset.svg ? "SVG" : getExtFromName(asset.rawName);
   thumb.appendChild(badge);
 
   // Per-type extras
@@ -939,7 +942,7 @@ function lh3Full(asset) {
 }
 
 async function getImageData(asset) {
-  const isSvg = /\.svg$/i.test(asset.rawName);
+  const isSvg = asset.svg;
 
   // SVG must insert as VECTOR → it needs the raw source bytes (lh3 only serves a raster
   // preview, so canvas is not acceptable here). Small SVGs come back 200 + CORS from BOTH
